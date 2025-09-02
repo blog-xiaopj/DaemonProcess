@@ -20,11 +20,15 @@ processDirectory=C:\Program Files\Google\Chrome\Application
 
 ; 进程重启间隔（以秒为单位），设置为 0 将禁用自动重启
 restartInterval=0
+
+; 进程启动参数（可选）
+processArgs=--incognito
 ```
 
 - `processName`: 需要监控的进程名称，不包括 `.exe` 后缀。
 - `processDirectory`: 进程的安装目录，确保路径正确。
 - `restartInterval`: 进程重启的时间间隔，单位为秒，设置为 0 则不自动重启。
+- `processArgs`: 进程启动时传入的命令行参数，可选配置。
 
 
 ## 创建 PowerShell 文件
@@ -38,6 +42,7 @@ restartInterval=0
 $processName = $args[0]  # 进程名称
 $processDirectory = $args[1]  # 进程目录
 $restartInterval = [int]$args[2]  # 重启间隔（以秒为单位）
+$processArgs = $args[3]  # 进程启动参数
 
 $processPath = Join-Path -Path $processDirectory -ChildPath "$processName.exe"  # 生成进程的完整路径
 
@@ -53,7 +58,7 @@ while ($true) {
     # 如果进程未运行，则启动它
     if (-not $process) {
         Write-Output "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $processName 未运行. 正在启动..."
-        Start-Process -FilePath $processPath -WorkingDirectory $processDirectory
+        Start-Process -FilePath $processPath -WorkingDirectory $processDirectory -ArgumentList $processArgs
     } else {
         Write-Output "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $processName 正在运行."
 
@@ -61,7 +66,7 @@ while ($true) {
         if ($restartInterval -gt 0 -and $process -and (Get-Date).AddSeconds(-$restartInterval) -gt $process.StartTime) {
             Write-Output "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') 正在重新启动 $processName..."
             Stop-Process -Name $processName -Force
-            Start-Process -FilePath $processPath -WorkingDirectory $processDirectory
+            Start-Process -FilePath $processPath -WorkingDirectory $processDirectory -ArgumentList $processArgs
         }
     }
 
@@ -86,7 +91,7 @@ chcp 65001 > nul
 set "scriptDir=%~dp0"
 
 :: 读取配置文件
-for /f "tokens=1,2 delims==" %%A in ('findstr /r "processName= processDirectory= restartInterval=" "%scriptDir%config.ini"') do (
+for /f "tokens=1,2 delims==" %%A in ('findstr /r "processName= processDirectory= restartInterval= processArgs=" "%scriptDir%config.ini"') do (
     set "%%A=%%B"
 )
 
@@ -100,7 +105,7 @@ if "%restartInterval%"=="0" (
     echo 守护进程重启间隔 "%restartInterval%" 秒
 )
 
-PowerShell -ExecutionPolicy Bypass -File "%scriptDir%ProcessDaemon.ps1" "%processName%" "%processDirectory%" "%restartInterval%"
+PowerShell -ExecutionPolicy Bypass -File "%scriptDir%ProcessDaemon.ps1" "%processName%" "%processDirectory%" "%restartInterval%" "%processArgs%"
 
 echo PowerShell 脚本执行完毕。
 pause
